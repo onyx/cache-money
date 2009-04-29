@@ -184,6 +184,17 @@ module Cash
           $memcache.flush_all
           Story.find(story.id).should == story
         end
+        
+        it "handles after_find on model" do
+          class AfterFindStory < Story
+            def after_find
+              self.title
+            end
+          end
+          lambda do
+            AfterFindStory.create!(:title => 'a story') 
+          end.should_not raise_error(ActiveRecord::MissingAttributeError)
+        end
       end
 
       describe '#find(id1, id2, ...)' do

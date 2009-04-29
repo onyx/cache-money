@@ -137,7 +137,7 @@ module Cash
       cache_value = get(key) do
         cache_hit = false
         conditions = attribute_value_pairs.to_hash
-        find_every_without_cache(:select => primary_key, :conditions => conditions, :limit => window).collect do |object|
+        find_every_without_cache(:conditions => conditions, :limit => window).collect do |object|
           serialize_object(object)
         end
       end
