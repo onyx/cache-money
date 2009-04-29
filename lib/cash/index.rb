@@ -4,10 +4,8 @@ module Cash
     delegate :each, :hash, :to => :@attributes
     delegate :get, :set, :expire, :find_every_without_cache, :calculate_without_cache, :calculate_with_cache, :incr, :decr, :primary_key, :to => :@active_record
 
-    DEFAULT_OPTIONS = { :ttl => 1.day }
-
     def initialize(config, active_record, attributes, options = {})
-      @config, @active_record, @attributes, @options = config, active_record, Array(attributes).collect(&:to_s).sort, DEFAULT_OPTIONS.merge(options)
+      @config, @active_record, @attributes, @options = config, active_record, Array(attributes).collect(&:to_s).sort, options
     end
 
     def ==(other)
@@ -48,7 +46,7 @@ module Cash
 
     module Attributes
       def ttl
-        @ttl ||= options[:ttl] || config.ttl
+        @ttl ||= options[:ttl] || @config.ttl
       end
 
       def order

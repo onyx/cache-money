@@ -38,8 +38,10 @@ module Cash
     class Config
       attr_reader :active_record, :options
 
+      DEFAULT_OPTIONS = { :ttl => 1.day }
+
       def self.create(active_record, options, indices = [])
-        active_record.cache_config = new(active_record, options)
+        active_record.cache_config = new(active_record, DEFAULT_OPTIONS.merge(options))
         indices.each { |i| active_record.index i.attributes, i.options }
       end
 
