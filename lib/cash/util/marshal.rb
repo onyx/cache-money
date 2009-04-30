@@ -8,7 +8,7 @@ module Marshal
       begin
         Marshal.load_without_constantize value
       rescue ArgumentError => e
-        _, class_name = *(/undefined class\/module (\w+)/.match(e.message))
+        _, class_name = *(/undefined class\/module ([\w:]*\w)/.match(e.message))
         raise if !class_name
         constantize(class_name)
         Marshal.load value

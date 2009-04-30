@@ -15,6 +15,22 @@ describe Marshal do
         stub(Marshal).constantize(@reference_to_constant.name) { Object.send(:const_set, :Constant, @reference_to_constant) }
         Marshal.load(@marshaled_object).class.should == @object.class
       end
+      
+      it 'loads the constant with the scope operator' do
+        module Foo; class Bar; end; end
+        
+        reference_to_module = Foo
+        reference_to_constant = Foo::Bar
+        object = reference_to_constant.new
+        marshaled_object = Marshal.dump(object)
+
+        Foo.send(:remove_const, :Bar)
+        Object.send(:remove_const, :Foo)
+        stub(Marshal).constantize(reference_to_module.name) { Object.send(:const_set, :Foo, reference_to_module) }
+        stub(Marshal).constantize(reference_to_constant.name) { Foo.send(:const_set, :Bar, reference_to_constant) }
+        
+        Marshal.load(marshaled_object).class.should == object.class
+      end
     end
 
     describe 'when the constant does not exist' do

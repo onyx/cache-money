@@ -4,6 +4,7 @@ REFACTOR
 * Clarify terminology around cache/key/index, etc.
 
 INFRASTRUCTURE
+* currently rake spec will fail with rails 2.3.x
 
 NEW FEATURES
 * transactional get multi isn't really multi
