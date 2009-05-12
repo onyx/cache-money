@@ -50,6 +50,30 @@ module Cash
           story.save!
           Story.get("id/#{story.id}").first.characters.loaded?.should_not be
         end
+        
+        it "caches extended behavior" do
+          story = Story.new(:title => 'I am special')
+          module SpecialBehavior
+            def special_behavior; 'woo!'; end
+          end
+          story.extend(SpecialBehavior)
+          story.save!
+          Story.get("id/#{story.id}").first.special_behavior.should == 'woo!'
+        end
+
+        it "caches extended behavior in the right order" do
+          story = Story.new(:title => 'I am special')
+          module SpecialBehaviorOne
+            def special_behavior; 'one!'; end
+          end
+          module SpecialBehaviorTwo
+            def special_behavior; 'two!'; end
+          end
+          story.extend(SpecialBehaviorOne)
+          story.extend(SpecialBehaviorTwo)
+          story.save!
+          Story.get("id/#{story.id}").first.special_behavior.should == 'two!'
+        end
 
         it 'increments the count' do
           story = Story.create!(:title => "Sam")

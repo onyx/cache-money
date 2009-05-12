@@ -37,6 +37,8 @@ module Cash
 
       def shallow_clone
         clone = self.class.new
+        new_ancestors = (self.metaclass.ancestors - clone.class.ancestors).reverse
+        new_ancestors.each { |ancestor| clone.extend(ancestor) }
         clone.instance_variable_set("@attributes", instance_variable_get(:@attributes))
         clone.instance_variable_set("@new_record", new_record?)
         clone
