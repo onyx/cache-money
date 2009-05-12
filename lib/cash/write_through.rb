@@ -36,8 +36,9 @@ module Cash
       end
 
       def shallow_clone
-        clone = Object.instance_method(:clone).bind(self).call
-        clone.clear_association_cache
+        clone = self.class.new
+        clone.instance_variable_set("@attributes", instance_variable_get(:@attributes))
+        clone.instance_variable_set("@new_record", new_record?)
         clone
       end
 

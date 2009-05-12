@@ -48,19 +48,7 @@ module Cash
           story = Story.new(:title => 'I am lugubrious')
           story.characters.build(:name => 'How am I holy?')
           story.save!
-          Story.get("id/#{story.id}").first.characters.loaded?.should be_false
-        end
-        
-        it "caches extended behavior" do
-          story = Story.new(:title => 'I am special')
-          module SpecialBehavior
-            def special_behavior
-              'woo!'
-            end
-          end
-          story.extend(SpecialBehavior)
-          story.save!
-          Story.get("id/#{story.id}").first.special_behavior.should == 'woo!'
+          Story.get("id/#{story.id}").first.characters.loaded?.should_not be
         end
 
         it 'increments the count' do
