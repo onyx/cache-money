@@ -39,7 +39,7 @@ module Cash
 
       def add(key, value, options = {})
         if repository.add(cache_key(key), value, options[:ttl] || 0, options[:raw]) == "NOT_STORED\r\n"
-          yield
+          yield if block_given?
         end
       end
 

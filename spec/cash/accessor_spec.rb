@@ -108,6 +108,11 @@ module Cash
           Story.set("count", 1)
           Story.add("count", 1) { "yield me" }.should == "yield me"
         end
+        
+        it 'yields to the block if block is given' do
+          Story.set("count", 1)
+          lambda { Story.add("count", 1) }.should_not raise_error(LocalJumpError)
+        end
       end
 
       describe 'when the value does not already exist' do
