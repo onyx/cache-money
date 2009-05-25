@@ -1,7 +1,7 @@
 module Cash
   module Query
     class Abstract
-      delegate :with_exclusive_scope, :get, :table_name, :indices, :find_from_ids_without_cache, :cache_key, :columns_hash, :to => :@active_record
+      delegate :with_exclusive_scope, :get, :table_name, :indices, :find_every_without_cache, :cache_key, :columns_hash, :quote_value, :to => :@active_record
 
       def self.perform(*args)
         new(*args).perform
@@ -51,7 +51,7 @@ module Cash
       def cacheable?(*optionss)
         optionss.each { |options| return unless safe_options_for_cache?(options) }
         partial_indices = optionss.collect { |options| attribute_value_pairs_for_conditions(options[:conditions]) }
-        return if partial_indices.include?(nil)
+        return if partial_indices.flatten.include?(nil)
         attribute_value_pairs = partial_indices.sum.sort { |x, y| x[0] <=> y[0] }
         if index = indexed_on?(attribute_value_pairs.collect { |pair| pair[0] })
           if index.matches?(self)
@@ -70,7 +70,20 @@ module Cash
       end
 
       def cache_keys(attribute_value_pairs)
-        attribute_value_pairs.flatten.join('/')
+        cache_keys = collect_cache_keys(attribute_value_pairs)
+        cache_keys.size == 1 ? cache_keys.first : cache_keys
+      end
+      
+      def collect_cache_keys(pairs)
+        return [] if pairs.empty?
+        key, values = pairs.shift
+        Array(values).inject([]) do |memo,value|
+          partial_keys = collect_cache_keys(pairs.clone)
+
+          memo << "#{key}/#{value}" if partial_keys.empty?
+          partial_keys.each { |partial_key| memo << "#{key}/#{value}/#{partial_key}" }
+          memo
+        end
       end
 
       def safe_options_for_cache?(options)
@@ -93,17 +106,19 @@ module Cash
 
       AND = /\s+AND\s+/i
       TABLE_AND_COLUMN = /(?:(?:`|")?(\w+)(?:`|")?\.)?(?:`|")?(\w+)(?:`|")?/              # Matches: `users`.id, `users`.`id`, users.id, id
-      VALUE = /'?(\d+|\?|(?:(?:[^']|'')*))'?/                     # Matches: 123, ?, '123', '12''3'
-      KEY_EQ_VALUE = /^\(?#{TABLE_AND_COLUMN}\s+=\s+#{VALUE}\)?$/ # Matches: KEY = VALUE, (KEY = VALUE)
-      ORDER = /^#{TABLE_AND_COLUMN}\s*(ASC|DESC)?$/i              # Matches: COLUMN ASC, COLUMN DESC, COLUMN
+      VALUE = /'?(\d+|\?|(?:(?:[^']|'')*?))'?/                                            # Matches: 123, ?, '123', '12 ''3'
+      KEY_EQ_VALUE = /^\(?#{TABLE_AND_COLUMN}\s+(?:=|IN)\s+\(?(?:#{VALUE}|,)\)?\)?$/      # Matches: KEY = VALUE, (KEY = VALUE), KEY IN (VALUE,VALUE,..)
+      ORDER = /^#{TABLE_AND_COLUMN}\s*(ASC|DESC)?$/i                                      # Matches: COLUMN ASC, COLUMN DESC, COLUMN
 
       def parse_indices_from_condition(conditions = '', *values)
         values = values.dup
         conditions.split(AND).inject([]) do |indices, condition|
-          matched, table_name, column_name, sql_value = *(KEY_EQ_VALUE.match(condition))
+          matched, table_name, column_name, sql_values = *(KEY_EQ_VALUE.match(condition))
           if matched
-            value = sql_value == '?' ? values.shift : columns_hash[column_name].type_cast(sql_value)
-            indices << [column_name, value]
+            actual_values = sql_values.split(',').collect do |sql_value|
+              sql_value == '?' ? values.shift : columns_hash[column_name].type_cast(sql_value)
+            end
+            indices << [column_name, actual_values]
           else
             return nil
           end
@@ -148,14 +163,29 @@ module Cash
           objects
         else
           cache_keys = objects.collect { |id| "id/#{id}" }
-          objects = get(cache_keys, &method(:find_from_keys))
+          objects = get(cache_keys) {|missed_keys| find_from_keys(missed_keys)}
           convert_to_array(cache_keys, objects)
         end
       end
 
-      def find_from_keys(*missing_keys)
-        missing_ids = Array(missing_keys).flatten.collect { |key| key.split('/')[2].to_i }
-        find_from_ids_without_cache(missing_ids, {})
+      def find_from_keys(missing_keys, options = {})
+        missing_keys_pairs = Array(missing_keys).flatten.collect { |key| key.split('/') }
+
+        keys_values = missing_keys_pairs.inject({}) do |memo, missing_keys_pair|
+          while missing_keys_pair.any?
+            key = missing_keys_pair.shift
+            memo[key] ||= []
+            memo[key] << missing_keys_pair.shift
+          end
+          memo
+        end
+
+        conditions = keys_values.collect do |key,values|
+          converted_values = values.collect {|value| quote_value(value, columns_hash[key])}
+          converted_values.size == 1 ? "#{key} = #{converted_values}" : "#{key} IN (#{converted_values.join(',')})"
+        end
+
+        find_every_without_cache(options.merge(:conditions => conditions.join(" AND ")))
       end
     end
   end

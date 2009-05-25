@@ -170,8 +170,9 @@ module Cash
 
               describe '#find(1, :conditions => ...)' do
                 it "does not use the database" do
+                  Story.create!
                   story = Story.create!
-                  character = Character.create!(:name => name = 'barbara', :story_id => story)
+                  character = Character.create!(:name => name = 'barbara', :story_id => story.id)
                   mock(Character.connection).execute.never
                   Character.send :with_scope, :find => { :conditions => { :story_id => story.id } } do
                     Character.find(character.id, :conditions => { :name => name }).should == character
@@ -341,7 +342,42 @@ module Cash
             Story.fetch("id/#{@story.id}").should == [@story]
           end
         end
+        
+        describe '#find(1,2)' do
+          it 'populates the cache' do
+            another_story = Story.create!
+            $memcache.flush_all
+            
+            Story.find(@story.id, another_story.id).should == [@story, another_story]
+            Story.fetch("id/#{@story.id}").should == @story
+            Story.fetch("id/#{another_story.id}").should == another_story
+          end
+          
+          it "populates the cache and retrieves from the cache" do
+            story1 = Story.create!
+            story2 = Story.create!
+            story3 = Story.create!
+            $memcache.flush_all
 
+            Story.find(story1.id, story2.id, story3.id).should == [story1, story2, story3]
+            mock(Story.connection).execute.never
+            Story.find(story1.id, story2.id).should == [story1, story2]
+          end
+          
+          it "uses database for missing keys" do
+            story1 = Story.create!
+            story2 = Story.create!
+            story3 = Story.create!
+            $memcache.flush_all
+
+            Story.find(story1.id, story3.id).should == [story1, story3]
+            Story.fetch("id/#{story2.id}").should be_nil
+
+            Story.find(story1.id, story2.id).should == [story1, story2]
+            Story.fetch("id/#{story2.id}").should == story2
+          end
+        end
+        
         describe 'when there is a with_scope' do
           it "uses the database, not the cache" do
             Story.send :with_scope, :find => { :conditions => { :title => @story.title }} do

@@ -4,8 +4,9 @@ module Cash
       delegate :find_every_without_cache, :to => :@active_record
 
       protected
-      def miss(_, miss_options)
-        find_every_without_cache(miss_options)
+      def miss(missed_keys, miss_options)
+        # find_every_without_cache(miss_options)
+        misses = find_from_keys(missed_keys, miss_options)
       end
 
       def uncacheable

@@ -11,11 +11,15 @@ module Cash
       def fetch(keys, options = {}, &block)
         case keys
         when Array
-          keys = keys.collect { |key| cache_key(key) }
-          hits = repository.get_multi(keys)
-          if (missed_keys = keys - hits.keys).any?
-            missed_values = block.call(missed_keys)
-            hits.merge!(missed_keys.zip(Array(missed_values)).to_hash)
+          cache_and_actual_keys = keys.inject({}) { |memo, key| memo[cache_key(key)] = key; memo }
+          cache_keys = keys.collect {|key| cache_key(key)}
+          
+          hits = repository.get_multi(cache_keys)
+          if (missed_cache_keys = cache_keys - hits.keys).any?
+            actual_missed_keys = missed_cache_keys.collect {|missed_cache_key| cache_and_actual_keys[missed_cache_key]}
+            missed_values = block.call(actual_missed_keys)
+            
+            hits.merge!(missed_cache_keys.zip(Array(missed_values)).to_hash)
           end
           hits
         else
@@ -26,7 +30,11 @@ module Cash
       def get(keys, options = {}, &block)
         case keys
         when Array
-          fetch(keys, options, &block)
+          fetch(keys, options) do |missed_keys|
+            results = yield(missed_keys)
+            results.each_with_index {|result, index| add(missed_keys[index], result, options)}
+            results
+          end
         else
           fetch(keys, options) do
             if block_given?
@@ -66,7 +74,8 @@ module Cash
       end
 
       def cache_key(key)
-        "#{name}:#{cache_config.version}/#{key.to_s.gsub(' ', '+')}"
+        ready = key =~ /#{name}:#{cache_config.version}/
+        ready ? key : "#{name}:#{cache_config.version}/#{key.to_s.gsub(' ', '+')}"
       end
     end
 
