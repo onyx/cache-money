@@ -1,7 +1,8 @@
 module Cash
   module Query
     class Abstract
-      delegate :with_exclusive_scope, :get, :table_name, :indices, :find_every_without_cache, :cache_key, :columns_hash, :quote_value, :to => :@active_record
+      delegate :with_exclusive_scope, :get, :quoted_table_name, :connection, :indices, 
+        :find_every_without_cache, :cache_key, :columns_hash, :quote_value, :to => :@active_record
 
       def self.perform(*args)
         new(*args).perform
@@ -98,6 +99,7 @@ module Cash
         when String
           parse_indices_from_condition(conditions)
         when Array
+          return nil if conditions.last.is_a?(Hash)
           parse_indices_from_condition(*conditions)
         when NilClass
           []
@@ -107,7 +109,7 @@ module Cash
       AND = /\s+AND\s+/i
       TABLE_AND_COLUMN = /(?:(?:`|")?(\w+)(?:`|")?\.)?(?:`|")?(\w+)(?:`|")?/              # Matches: `users`.id, `users`.`id`, users.id, id
       VALUE = /'?(\d+|\?|(?:(?:[^']|'')*?))'?/                                            # Matches: 123, ?, '123', '12 ''3'
-      KEY_EQ_VALUE = /^\(?#{TABLE_AND_COLUMN}\s+(?:=|IN)\s+\(?(?:#{VALUE}|,)\)?\)?$/      # Matches: KEY = VALUE, (KEY = VALUE), KEY IN (VALUE,VALUE,..)
+      KEY_EQ_VALUE = /^\(?#{TABLE_AND_COLUMN}\s+(?:=|IN)\s+\(?(?:#{VALUE})\)?\)?$/      # Matches: KEY = VALUE, (KEY = VALUE), KEY IN (VALUE,VALUE,..)
       ORDER = /^#{TABLE_AND_COLUMN}\s*(ASC|DESC)?$/i                                      # Matches: COLUMN ASC, COLUMN DESC, COLUMN
 
       def parse_indices_from_condition(conditions = '', *values)
@@ -182,7 +184,8 @@ module Cash
 
         conditions = keys_values.collect do |key,values|
           converted_values = values.collect {|value| quote_value(value, columns_hash[key])}
-          converted_values.size == 1 ? "#{key} = #{converted_values}" : "#{key} IN (#{converted_values.join(',')})"
+          quoted_table_and_column_name = "#{quoted_table_name}.#{connection.quote_column_name(key)}"
+          converted_values.size == 1 ? "#{quoted_table_and_column_name} = #{converted_values}" : "#{quoted_table_and_column_name} IN (#{converted_values.join(',')})"
         end
 
         find_every_without_cache(options.merge(:conditions => conditions.join(" AND ")))
