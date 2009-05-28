@@ -17,9 +17,9 @@ module Cash
           hits = repository.get_multi(cache_keys)
           if (missed_cache_keys = cache_keys - hits.keys).any?
             actual_missed_keys = missed_cache_keys.collect {|missed_cache_key| cache_and_actual_keys[missed_cache_key]}
-            missed_values = block.call(actual_missed_keys)
-            
-            hits.merge!(missed_cache_keys.zip(Array(missed_values)).to_hash)
+            misses = block.call(actual_missed_keys)
+
+            hits.merge!(misses)
           end
           hits
         else
@@ -32,13 +32,15 @@ module Cash
         when Array
           fetch(keys, options) do |missed_keys|
             results = yield(missed_keys)
-            results.each_with_index {|result, index| add(missed_keys[index], result, options)}
+            results.each {|key, value| add(key, (value.size == 1 ? value.first : value), options)}
             results
           end
         else
           fetch(keys, options) do
             if block_given?
-              add(keys, result = yield(keys), options)
+              result = yield(keys)
+              value = result.is_a?(Hash) ? result[cache_key(keys)] : result
+              add(keys, value, options)
               result
             end
           end

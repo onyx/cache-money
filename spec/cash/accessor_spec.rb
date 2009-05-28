@@ -21,17 +21,28 @@ module Cash
       describe '#fetch([...])', :shared => true do
         describe 'when there is a total cache miss' do
           it 'yields the keys to the block' do
-            Story.fetch(["yabba", "dabba"]) { |*missing_ids| ["doo", "doo"] }.should == {
-              "Story:1/yabba" => "doo",
+            Story.fetch(["yabba", "dabba"]) do |*missing_ids|
+              {"Story:1/yabba" => "doo", "Story:1/dabba" => "doo"}
+            end.should == {
+              "Story:1/yabba" => "doo", "Story:1/dabba" => "doo"}
+          end
+        end
+
+        describe 'when there is a partial cache miss' do
+          it 'yields just the missing keys and ids to the block' do
+            Story.set("yabba", "dabba")
+            Story.fetch(["yabba", "dabba"]) { |*missing_ids| {"Story:1/dabba" => "doo"} }.should == {
+              "Story:1/yabba" => "dabba",
               "Story:1/dabba" => "doo"
             }
           end
         end
 
-        describe 'when there is a partial cache miss' do
-          it 'yields just the missing ids to the block' do
+        describe 'when there is a total cache hit' do
+          it 'yields empty hash to the block' do
             Story.set("yabba", "dabba")
-            Story.fetch(["yabba", "dabba"]) { |*missing_ids| "doo" }.should == {
+            Story.set("dabba", "doo")
+            Story.fetch(["yabba", "dabba"]) { |*missing_ids| {} }.should == {
               "Story:1/yabba" => "dabba",
               "Story:1/dabba" => "doo"
             }

@@ -136,7 +136,6 @@ module Cash
 
       def format_results(cache_keys, objects)
         return objects if objects.blank?
-
         objects = convert_to_array(cache_keys, objects)
         objects = apply_limits_and_offsets(objects, @options1)
         deserialize_objects(objects)
@@ -147,7 +146,9 @@ module Cash
       end
 
       def serialize_objects(index, objects)
-        Array(objects).collect { |missed| index.serialize_object(missed) }
+        objects.each do |key, values|
+          objects[key] = values.collect { |value| index.serialize_object(value) }
+        end
       end
 
       def convert_to_array(cache_keys, object)
@@ -173,25 +174,59 @@ module Cash
       end
 
       def find_from_keys(missing_keys, options = {})
-        missing_keys_pairs = Array(missing_keys).flatten.collect { |key| key.split('/') }
+        #[[id/1/title/foo], [id/1/title/foo]]
+        missing_keys_values_pairs = Array(missing_keys).flatten.collect { |key| key.split('/') }
+        #[[id,1,title,foo], [id,2,title,foo]]
 
-        keys_values = missing_keys_pairs.inject({}) do |memo, missing_keys_pair|
-          while missing_keys_pair.any?
-            key = missing_keys_pair.shift
+        conditions = conditions_from_missing_keys_values_pairs(missing_keys_values_pairs)
+        results = find_every_without_cache options.merge(:conditions => conditions)
+        # [<object1>, <object2>, <object3>]
+
+        collect_results_into_hash(missing_keys_values_pairs, Array(results))
+        #{ id/1/title/foo => [<object1>], id/2/title/foo => [<object2>,<object3>] }
+      end
+      
+      def collect_results_into_hash(missing_keys_values_pairs, results)
+        missing_keys_values_pairs.inject({}) do |memo, missing_keys_values_pair|
+          match = results.select do |result|
+            found_match = false
+            missing_keys_values_pair.each_slice(2) do |key, value|
+              found_match = result.send(key) == convert_value(key, value)
+            end
+            found_match
+          end
+          memo[cache_key(missing_keys_values_pair.join('/'))] = match
+          memo
+        end
+      end
+      
+      def conditions_from_missing_keys_values_pairs(missing_keys_values_pairs)
+        keys_values = missing_keys_values_pairs.inject({}) do |memo, missing_keys_values_pair|
+          missing_keys_values_pair.each_slice(2) do |key, value|
             memo[key] ||= []
-            memo[key] << missing_keys_pair.shift
+            memo[key] << value
           end
           memo
         end
+        # { :id => [1,2], :title => [foo] }
 
         conditions = keys_values.collect do |key,values|
-          converted_values = values.collect {|value| quote_value(value, columns_hash[key])}
+          quoted_values = values.collect {|value| quote_value(value, columns_hash[key])}
           quoted_table_and_column_name = "#{quoted_table_name}.#{connection.quote_column_name(key)}"
-          converted_values.size == 1 ? "#{quoted_table_and_column_name} = #{converted_values}" : "#{quoted_table_and_column_name} IN (#{converted_values.join(',')})"
-        end
-
-        find_every_without_cache(options.merge(:conditions => conditions.join(" AND ")))
+          if quoted_values.size == 1
+            "#{quoted_table_and_column_name} = #{quoted_values}"
+          else
+            "#{quoted_table_and_column_name} IN (#{quoted_values.join(',')})"
+          end
+        end.join(' AND ')
       end
+      
+      protected 
+      
+      def convert_value(key, value)
+        columns_hash[key].type == :integer ? value.to_i : value
+      end
+      
     end
   end
 end

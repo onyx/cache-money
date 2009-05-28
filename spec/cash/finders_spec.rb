@@ -477,6 +477,17 @@ module Cash
               Story.find(:all, :conditions => {:id => ids})
             end.should_not raise_error(ArgumentError)
           end
+
+          it "populates the cache correctly when passing in a nonexistent key" do
+            pending 'non-existent keys not supported'
+            story1 = Story.create!
+            story2 = Story.create!
+            $memcache.flush_all
+            Story.find(:all, :conditions => ["id IN (?)", [story1.id, 999, story2.id]])
+            Story.fetch("id/#{story1.id}").should == story1
+            Story.fetch("id/#{story2.id}").should == story2
+            Story.fetch("id/999").should be_nil
+          end          
         end
         
         describe 'when there is a with_scope' do
@@ -484,6 +495,31 @@ module Cash
             Story.send :with_scope, :find => { :conditions => { :title => @story.title }} do
               Story.find(:first, :conditions => { :id => @story.id }).should == @story
             end
+          end
+        end
+        
+        it 'populates the cache correctly when arguments are unordered' do
+          another_story = Story.create!
+          $memcache.flush_all
+          
+          Story.find(another_story.id, @story.id)
+          Story.fetch("id/#{@story.id}").should == @story
+          Story.fetch("id/#{another_story.id}").should == another_story
+        end
+        
+        describe 'when the cache is partially populated' do
+          it 'returns data in correct order' do
+            pending("ordering from conditions not supported yet")
+            fairy_tale1 = FairyTale.create!
+            fairy_tale2 = FairyTale.create!
+            fairy_tale3 = FairyTale.create!
+            fairy_tale4 = FairyTale.create!
+            $memcache.flush_all
+
+            FairyTale.find(fairy_tale1.id, fairy_tale3.id)
+            unordered_fairy_tales = [fairy_tale4.id, fairy_tale3.id, fairy_tale2.id, fairy_tale1.id]
+            ordered_fairy_tales = FairyTale.find(:all, :conditions => ["id IN (?)", unordered_fairy_tales], :order => 'id ASC')     
+            ordered_fairy_tales.should == [fairy_tale1, fairy_tale2, fairy_tale3, fairy_tale4]
           end
         end
       end
