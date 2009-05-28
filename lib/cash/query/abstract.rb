@@ -81,6 +81,8 @@ module Cash
       def attribute_value_pairs_for_conditions(conditions)
         case conditions
         when Hash
+          # avoid key too long error when passing in array of ids
+          return nil if conditions.values.any? {|value| value.is_a?(Array)}
           conditions.to_a.collect { |key, value| [key.to_s, value] }
         when String
           parse_indices_from_condition(conditions)
