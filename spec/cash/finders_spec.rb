@@ -479,11 +479,10 @@ module Cash
           end
 
           it "populates the cache correctly when passing in a nonexistent key" do
-            pending 'non-existent keys not supported'
             story1 = Story.create!
             story2 = Story.create!
             $memcache.flush_all
-            Story.find(:all, :conditions => ["id IN (?)", [story1.id, 999, story2.id]])
+            Story.find(:all, :conditions => ["id IN (?)", [story1.id, 999, story2.id]]).should == [story1, story2]
             Story.fetch("id/#{story1.id}").should == story1
             Story.fetch("id/#{story2.id}").should == story2
             Story.fetch("id/999").should be_nil
