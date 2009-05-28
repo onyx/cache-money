@@ -212,6 +212,19 @@ module Cash
             end
           end
 
+          describe "#find_all_by_id" do
+            it "should not create a key over 250 characters" do
+              150.times do
+                Story.create!
+              end
+              ids = Story.find(:all).map(&:id)
+              $memcache.flush_all
+              lambda do 
+                Story.find_all_by_id(ids)
+              end.should_not raise_error(ArgumentError)
+            end
+          end
+
           describe '#find(:all)' do
             it "uses the database, not the cache" do
               character = Character.create!
@@ -227,6 +240,28 @@ module Cash
                   mock(Story.connection).execute.never
                   Story.find(:all, :conditions => { :title => story1.title }).should == [story1, story2]
                 end
+              end
+              
+              it "should not create a key over 250 characters with hash for conditions" do
+                150.times do
+                  Story.create!
+                end
+                ids = Story.find(:all).map(&:id)
+                $memcache.flush_all
+                lambda do 
+                  Story.find(:all, :conditions => {:id => ids})
+                end.should_not raise_error(ArgumentError)
+              end
+
+              it "should not create a key over 250 characters with array for conditions" do
+                150.times do
+                  Story.create!
+                end
+                ids = Story.find(:all).map(&:id)
+                $memcache.flush_all
+                lambda do 
+                  Story.find(:all, :conditions => ["id IN (?)", ids])
+                end.should_not raise_error(ArgumentError)
               end
             end
 
@@ -262,7 +297,7 @@ module Cash
             end
           end
 
-          describe '#find_by_attr' do
+          describe '#find_by_attr' do            
             describe 'on indexed attributes' do
               describe '#find_by_id(id)' do
                 it "does not use the database" do
