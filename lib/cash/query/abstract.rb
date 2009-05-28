@@ -87,6 +87,8 @@ module Cash
         when String
           parse_indices_from_condition(conditions)
         when Array
+          # do not cache find(:conditions => ["... :attr", {:attr => 1}]
+          return nil if conditions.last.is_a?(Hash)
           parse_indices_from_condition(*conditions)
         when NilClass
           []

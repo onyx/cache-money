@@ -369,6 +369,19 @@ module Cash
             Story.fetch("title/#{@story.title}").should == [@story.id]
           end
         end
+        
+        describe '#find(:conditions => ["... :attr", {:attr => 1}])' do
+          it 'never retrieves from cache' do
+            mock(Story).add.never
+            Story.find(:all, :conditions => ["id = :id", {:id => @story.id}])
+          end
+          
+          it 'populates the cache' do
+            pending "remove test above when this is fixed"
+            Story.find(:all, :conditions => ["id = :id", {:id => @story.id}])
+            Story.fetch("id/#{@story.id}").should == @story
+          end
+        end
 
         describe '#find(1)' do
           it 'populates the cache' do
