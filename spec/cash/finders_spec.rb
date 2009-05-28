@@ -170,9 +170,8 @@ module Cash
 
               describe '#find(1, :conditions => ...)' do
                 it "does not use the database" do
-                  Story.create!
                   story = Story.create!
-                  character = Character.create!(:name => name = 'barbara', :story_id => story.id)
+                  character = Character.create!(:name => name = 'barbara', :story_id => story)
                   mock(Character.connection).execute.never
                   Character.send :with_scope, :find => { :conditions => { :story_id => story.id } } do
                     Character.find(character.id, :conditions => { :name => name }).should == character
@@ -336,101 +335,13 @@ module Cash
           end
         end
 
-        describe '#find(:conditions => ["... :attr", {:attr => 1}])' do
-          it 'retrieves story from database - no support yet for retrieving from cache' do
-            Story.find(:all, :conditions => ["id = :id", {:id => @story.id}]).should == [@story]
-          end
-        end
-        
         describe '#find(1)' do
           it 'populates the cache' do
             Story.find(@story.id)
             Story.fetch("id/#{@story.id}").should == [@story]
           end
         end
-        
-        describe '#find(1,2)' do
-          it 'populates the cache' do
-            another_story = Story.create!
-            $memcache.flush_all
-            
-            Story.find(@story.id, another_story.id).should == [@story, another_story]
-            Story.fetch("id/#{@story.id}").should == @story
-            Story.fetch("id/#{another_story.id}").should == another_story
-          end
-          
-          it "populates the cache and retrieves from the cache" do
-            story1 = Story.create!
-            story2 = Story.create!
-            story3 = Story.create!
-            $memcache.flush_all
 
-            Story.find(story1.id, story2.id, story3.id).should == [story1, story2, story3]
-            mock(Story.connection).execute.never
-            Story.find(story1.id, story2.id).should == [story1, story2]
-          end
-          
-          it "uses database for missing keys" do
-            story1 = Story.create!
-            story2 = Story.create!
-            story3 = Story.create!
-            $memcache.flush_all
-
-            Story.find(story1.id, story3.id).should == [story1, story3]
-            Story.fetch("id/#{story2.id}").should be_nil
-
-            mock(Story).find_every_without_cache(:limit => nil, :conditions => "\"stories\".\"id\" = #{story2.id}") do 
-              story2
-            end
-            Story.find(story1.id, story2.id)
-          end
-          
-          it "populates and retrieves from cache when passing in a hash" do
-            story1 = Story.create!
-            story2 = Story.create!
-            $memcache.flush_all
-
-            Story.find(:all, :conditions => {:id => [story1.id, story2.id]})
-            mock(Story.connection).execute.never
-            Story.find(story1.id, story2.id)
-          end
-
-          it "populates and retrieves from cache when passing in a parametrized conditions" do
-            story1 = Story.create!
-            story2 = Story.create!
-            $memcache.flush_all
-
-            Story.find(:all, :conditions => ["id IN (?,?)", story1.id, story2.id])
-            mock(Story.connection).execute.never
-            Story.find(story1.id, story2.id)
-          end
-
-          it "populates and retrieves from cache when passing in a list of non-numeric keys" do
-            pending "need to fix regex to properly parse this"
-            story1 = Story.create! :title => 'one'
-            story2 = Story.create! :title => 'two'
-            $memcache.flush_all
-
-            Story.find(:all, :conditions => ["title IN ('one', 'two')"])
-            # We need to add this extra call as cache money will always go to the database
-            #  one more time when finding by a non-id field first
-            Story.find_all_by_title(['one', 'two'])
-            mock(Story.connection).execute.never
-            Story.find(story1.id, story2.id)
-          end
-          
-          it "should not create a key over 250 characters on a find_all_by_ids" do
-            75.times do
-              Story.create!
-            end
-            ids = Story.find(:all).map(&:id)
-            $memcache.flush_all
-            lambda do 
-              Story.find(:all, :conditions => {:id => ids})
-            end.should_not raise_error(ArgumentError)
-          end
-        end
-        
         describe 'when there is a with_scope' do
           it "uses the database, not the cache" do
             Story.send :with_scope, :find => { :conditions => { :title => @story.title }} do
