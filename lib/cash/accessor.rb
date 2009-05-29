@@ -40,7 +40,8 @@ module Cash
             if block_given?
               result = yield(keys)
               value = result.is_a?(Hash) ? result[cache_key(keys)] : result
-              add(keys, value, options)
+              # do not store nil values into cache ... always go back to database
+              add(keys, value, options) if value
               result
             end
           end

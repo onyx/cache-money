@@ -11,6 +11,14 @@ module Cash
               mock(Story.connection).execute.never
               Story.find(story.id).should == story
             end
+            
+            it 'does not cache non-existent ids' do
+              mock(Story).add.never
+              begin
+                Story.find(1)
+              rescue ActiveRecord::RecordNotFound
+              end
+            end            
           end
 
           describe '#find(object)' do
@@ -207,6 +215,11 @@ module Cash
                   character = story.characters.create!
                   mock(Character.connection).execute.never
                   story.characters.find_by_id(character.id).should == character
+                end
+                
+                it 'does not cache non-existent attribute' do
+                  mock(Story).add.never
+                  Story.find_by_title("blah")
                 end
               end
             end
