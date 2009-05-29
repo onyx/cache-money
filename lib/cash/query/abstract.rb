@@ -191,7 +191,7 @@ module Cash
           match = results.select do |result|
             found_match = false
             missing_keys_values_pair.each_slice(2) do |key, value|
-              found_match = result.send(key) == convert_value(key, value)
+              found_match = upcase_if_possible(result.send(key)) == convert_value(key, value)
             end
             found_match
           end
@@ -223,8 +223,12 @@ module Cash
       
       protected 
       
+      def upcase_if_possible(value)
+        value.respond_to?(:upcase) ? value.upcase : value
+      end
+      
       def convert_value(key, value)
-        columns_hash[key].type == :integer ? value.to_i : value
+        columns_hash[key].type == :integer ? value.to_i : upcase_if_possible(value)
       end
       
     end

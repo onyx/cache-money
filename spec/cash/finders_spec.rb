@@ -355,6 +355,11 @@ module Cash
             Story.find(:first, :conditions => { :title => @story.title })
             Story.fetch("title/#{@story.title}").should == [@story.id]
           end
+          
+          it 'populates the cache when database is case insensitive - fails under sqlite (case sensitive)' do
+            Story.find(:first, :conditions => { :title => @story.title.upcase })
+            Story.fetch("title/#{@story.title.upcase}").should == [@story.id]
+          end
         end
 
         describe '#find_by_attr' do
@@ -418,7 +423,7 @@ module Cash
             Story.find(story1.id, story2.id).should == [story1, story2]
           end
           
-          it "uses database for missing keys" do
+          it "uses database for single missing key" do
             story1 = Story.create!
             story2 = Story.create!
             story3 = Story.create!
@@ -427,10 +432,32 @@ module Cash
             Story.find(story1.id, story3.id).should == [story1, story3]
             Story.fetch("id/#{story2.id}").should be_nil
 
-            mock(Story).find_every_without_cache(:limit => nil, :conditions => "\"stories\".\"id\" = #{story2.id}") do 
+            quoted_table_name = Story.quoted_table_name
+            quoted_column_name = Story.connection.quote_column_name("id")
+            mock(Story).find_every_without_cache(:limit => nil, 
+                :conditions => "#{quoted_table_name}.#{quoted_column_name} = #{story2.id}") do 
               story2
             end
             Story.find(story1.id, story2.id)
+          end
+          
+          it "uses database for all missing keys" do
+            story1 = Story.create!
+            story2 = Story.create!
+            story3 = Story.create!
+            $memcache.flush_all
+
+            Story.find(story2.id).should == story2
+            Story.fetch("id/#{story1.id}").should be_nil
+            Story.fetch("id/#{story3.id}").should be_nil
+
+            quoted_table_name = Story.quoted_table_name
+            quoted_column_name = Story.connection.quote_column_name("id")
+            mock(Story).find_every_without_cache(:limit => nil, 
+                :conditions => "#{quoted_table_name}.#{quoted_column_name} IN (#{story1.id},#{story3.id})") do 
+              [story1, story3]
+            end
+            Story.find(story1.id, story2.id, story3.id)
           end
           
           it "populates and retrieves from cache when passing in a hash" do
