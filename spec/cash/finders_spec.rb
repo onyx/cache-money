@@ -255,6 +255,17 @@ module Cash
                 end
               end
               
+              it "populate cache with compound key" do
+                story = Story.create!
+                harry = story.characters.create! :name => "harry"
+                larry = story.characters.create! :name => "larry"
+                $memcache.flush_all
+
+                Character.find(:all, :conditions => {:story_id => story.id, :name => [larry.name, harry.name]})
+                Character.fetch("name/#{harry.name}/story_id/#{story.id}").should == harry.id
+                Character.fetch("name/#{larry.name}/story_id/#{story.id}").should == larry.id
+              end
+              
               it "should not create a key over 250 characters with hash for conditions" do
                 150.times do
                   Story.create!

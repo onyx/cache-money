@@ -192,6 +192,7 @@ module Cash
             found_match = false
             missing_keys_values_pair.each_slice(2) do |key, value|
               found_match = upcase_if_possible(result.send(key)) == convert_value(key, value)
+              break unless found_match
             end
             found_match
           end
