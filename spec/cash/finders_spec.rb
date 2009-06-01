@@ -557,19 +557,18 @@ module Cash
           Story.fetch("id/#{another_story.id}").should == another_story
         end
         
-        describe 'when the cache is partially populated' do
+        describe 'ordering' do
           it 'returns data in correct order' do
-            pending("ordering from conditions not supported yet")
-            fairy_tale1 = FairyTale.create!
-            fairy_tale2 = FairyTale.create!
-            fairy_tale3 = FairyTale.create!
-            fairy_tale4 = FairyTale.create!
+            story1 = Story.create!
+            story2 = Story.create!
+            story3 = Story.create!
+            story4 = Story.create!
             $memcache.flush_all
 
-            FairyTale.find(fairy_tale1.id, fairy_tale3.id)
-            unordered_fairy_tales = [fairy_tale4.id, fairy_tale3.id, fairy_tale2.id, fairy_tale1.id]
-            ordered_fairy_tales = FairyTale.find(:all, :conditions => ["id IN (?)", unordered_fairy_tales], :order => 'id ASC')     
-            ordered_fairy_tales.should == [fairy_tale1, fairy_tale2, fairy_tale3, fairy_tale4]
+            Story.find(story1.id, story3.id)
+            unordered_fairy_tales = [story4.id, story3.id, story2.id, story1.id]
+            ordered_fairy_tales = Story.find(:all, :conditions => ["id IN (?)", unordered_fairy_tales], :order => 'id ASC')     
+            ordered_fairy_tales.should == [story1, story2, story3, story4]
           end
         end
       end

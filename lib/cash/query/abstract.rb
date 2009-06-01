@@ -50,6 +50,9 @@ module Cash
 
       private
       def cacheable?(*optionss)
+        # Cache money used to cache queries with order option only when order was "id asc";
+        #   For now, we just want all order queries to go to the database always.
+        return if optionss.find {|options| options[:order] }
         optionss.each { |options| return unless safe_options_for_cache?(options) }
         partial_indices = optionss.collect { |options| attribute_value_pairs_for_conditions(options[:conditions]) }
         return if partial_indices.flatten.include?(nil)

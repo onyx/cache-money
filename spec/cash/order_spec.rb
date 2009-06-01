@@ -1,6 +1,7 @@
 require File.join(File.dirname(__FILE__), '..', 'spec_helper')
 
 module Cash
+  # for now, all order queries will go to database and bypass cache"
   describe 'Ordering' do
     before :suite do
       FairyTale = Class.new(Story)
@@ -79,6 +80,7 @@ module Cash
         describe "#find(..., :order => 'id ASC')" do
           describe 'when the cache is populated' do
             it 'does not use the database' do
+              pending "for now, all order queries will go to database and bypass cache"
               mock(FairyTale.connection).execute.never
               FairyTale.find(:all, :conditions => { :title => @title }, :order => 'id ASC').should == @fairy_tales
               FairyTale.find(:all, :conditions => { :title => @title }, :order => 'id').should == @fairy_tales
@@ -91,6 +93,7 @@ module Cash
 
           describe 'when the cache is not populated' do
             it 'populates the cache' do
+              pending "for now, all order queries will go to database and bypass cache"              
               $memcache.flush_all
               FairyTale.find(:all, :conditions => { :title => @title }, :order => 'id ASC').should == @fairy_tales
               FairyTale.get("title/#{@title}").should == @fairy_tales.collect(&:id)
@@ -124,6 +127,7 @@ module Cash
         describe "#find(..., :order => 'id DESC')" do
           describe 'when the cache is populated' do
             it 'does not use the database' do
+              pending "for now, all order queries will go to database and bypass cache"
               mock(FairyTale.connection).execute.never
               FairyTale.find(:all, :conditions => { :title => @title }, :order => 'id DESC').should == @fairy_tales.reverse
               FairyTale.find(:all, :conditions => { :title => @title }, :order => 'id DESC').should == @fairy_tales.reverse
@@ -136,6 +140,7 @@ module Cash
 
           describe 'when the cache is not populated' do
             it 'populates the cache' do
+              pending "for now, all order queries will go to database and bypass cache"              
               $memcache.flush_all
               FairyTale.find(:all, :conditions => { :title => @title }, :order => 'id DESC')
               FairyTale.get("title/#{@title}").should == @fairy_tales.collect(&:id).reverse
