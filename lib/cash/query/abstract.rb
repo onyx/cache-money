@@ -148,9 +148,9 @@ module Cash
         missed_keys == cache_keys ? misses : objects
       end
 
-      def serialize_objects(index, objects)
-        objects.each do |key, values|
-          objects[key] = values.collect { |value| index.serialize_object(value) }
+      def serialize_objects(index, objects_hash)
+        objects_hash.each do |key, objects|
+          objects_hash[key] = index.serialize_objects(objects)
         end
       end
 
@@ -199,7 +199,7 @@ module Cash
             end
             found_match
           end
-          memo[cache_key(missing_keys_values_pair.join('/'))] = match if match.any?
+          memo[cache_key(missing_keys_values_pair.join('/'))] = match
           memo
         end
       end

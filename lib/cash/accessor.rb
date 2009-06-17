@@ -32,7 +32,7 @@ module Cash
         when Array
           fetch(keys, options) do |missed_keys|
             results = yield(missed_keys)
-            results.each {|key, value| add(key, (value.size == 1 ? value.first : value), options)}
+            results.each {|key, value| add(key, value, options)}
             results
           end
         else

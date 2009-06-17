@@ -67,6 +67,11 @@ module Cash
     end
     include Attributes
 
+    #not ideal, need to find a better solution
+    def serialize_objects(objects)
+      primary_key? ? objects.first : objects.map(&:id)
+    end
+
     def serialize_object(object)
       primary_key? ? object : object.id
     end

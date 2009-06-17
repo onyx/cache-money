@@ -216,11 +216,6 @@ module Cash
                   mock(Character.connection).execute.never
                   story.characters.find_by_id(character.id).should == character
                 end
-                
-                it 'does not cache non-existent attribute' do
-                  mock(Story).add.never
-                  Story.find_by_title("blah")
-                end
               end
             end
           end
@@ -262,8 +257,8 @@ module Cash
                 $memcache.flush_all
 
                 Character.find(:all, :conditions => {:story_id => story.id, :name => [larry.name, harry.name]})
-                Character.fetch("name/#{harry.name}/story_id/#{story.id}").should == harry.id
-                Character.fetch("name/#{larry.name}/story_id/#{story.id}").should == larry.id
+                Character.fetch("name/#{harry.name}/story_id/#{story.id}").should == [harry.id]
+                Character.fetch("name/#{larry.name}/story_id/#{story.id}").should == [larry.id]
               end
               
               it "should not create a key over 250 characters with hash for conditions" do
@@ -391,6 +386,11 @@ module Cash
             Story.find_by_title(@story.title)
             Story.fetch("title/#{@story.title}").should == [@story.id]
           end
+          
+          it 'populates the cache with empty array for non-existent value' do
+            Story.find_by_title("blah")
+            Story.fetch("title/blah").should == []
+          end
         end
 
         describe '#find(:all, :conditions => ...)' do
@@ -422,7 +422,7 @@ module Cash
         describe '#find(1)' do
           it 'populates the cache' do
             Story.find(@story.id)
-            Story.fetch("id/#{@story.id}").should == [@story]
+            Story.fetch("id/#{@story.id}").should == @story
           end
         end
         
