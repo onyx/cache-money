@@ -194,7 +194,7 @@ module Cash
           match = results.select do |result|
             found_match = false
             missing_keys_values_pair.each_slice(2) do |key, value|
-              found_match = upcase_if_possible(result.send(key)) == convert_value(key, value)
+              found_match = upcase_if_possible(result.send(key)) == upcase_if_possible(type_cast(key,value))
               break unless found_match
             end
             found_match
@@ -215,7 +215,9 @@ module Cash
         # { :id => [1,2], :title => [foo] }
 
         conditions = keys_values.collect do |key,values|
-          quoted_values = values.collect {|value| quote_value(value, columns_hash[key])}
+          quoted_values = values.collect do |value|
+            quote_value(type_cast(key, value), columns_hash[key])
+          end
           quoted_table_and_column_name = "#{quoted_table_name}.#{connection.quote_column_name(key)}"
           if quoted_values.size == 1
             "#{quoted_table_and_column_name} = #{quoted_values}"
@@ -227,14 +229,13 @@ module Cash
       
       protected 
       
+      def type_cast(column_name, value)
+        columns_hash[column_name].type_cast(value)
+      end
+      
       def upcase_if_possible(value)
         value.respond_to?(:upcase) ? value.upcase : value
       end
-      
-      def convert_value(key, value)
-        columns_hash[key].type == :integer ? value.to_i : upcase_if_possible(value)
-      end
-      
     end
   end
 end

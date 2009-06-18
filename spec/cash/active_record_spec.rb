@@ -204,6 +204,15 @@ module Cash
           end.should_not raise_error(ActiveRecord::MissingAttributeError)
         end
       end
+      
+      describe "#find(:first, :conditions => '...')" do
+        it 'correctly retrives by boolean field' do
+          story1 = Story.create! :title => 'a story', :published => true
+          story2 = Story.create! :title => 'another story', :published => false
+          $memcache.flush_all
+          Story.find(:first, :conditions => {:published => true}).should == story1
+        end
+      end
 
       describe '#find(id1, id2, ...)' do
         it "handles finds with multiple ids correctly" do
