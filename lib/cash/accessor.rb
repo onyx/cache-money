@@ -8,6 +8,8 @@ module Cash
     end
 
     module ClassMethods
+      NIL_CACHE_VALUE = 'NIL_CACHE_VALUE'
+      
       def fetch(keys, options = {}, &block)
         case keys
         when Array
@@ -30,24 +32,25 @@ module Cash
       def get(keys, options = {}, &block)
         case keys
         when Array
-          fetch(keys, options) do |missed_keys|
+          results = fetch(keys, options) do |missed_keys|
             results = yield(missed_keys)
-            results.each {|key, value| add(key, value, options)}
+            results.each {|key, value| add(key, wrap_nil(value), options)}
             results
           end
+          results.each { |key, result| results[key] = unwrap_nil(result) }
         else
-          fetch(keys, options) do
+          result = fetch(keys, options) do
             if block_given?
               result = yield(keys)
               value = result.is_a?(Hash) ? result[cache_key(keys)] : result
-              # do not store nil values into cache ... always go back to database
-              add(keys, value, options) if value
+              add(keys, wrap_nil(value), options)
               result
             end
           end
+          unwrap_nil(result)
         end
       end
-
+      
       def add(key, value, options = {})
         if repository.add(cache_key(key), value, options[:ttl] || 0, options[:raw]) == "NOT_STORED\r\n"
           yield if block_given?
@@ -80,6 +83,17 @@ module Cash
         ready = key =~ /#{name}:#{cache_config.version}/
         ready ? key : "#{name}:#{cache_config.version}/#{key.to_s.gsub(' ', '+')}"
       end
+      
+      private
+      
+      def wrap_nil(value)
+        value.nil? ? NIL_CACHE_VALUE : value
+      end
+
+      def unwrap_nil(value)
+        value == NIL_CACHE_VALUE ? nil : value
+      end
+
     end
 
     module InstanceMethods

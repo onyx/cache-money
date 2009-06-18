@@ -5,20 +5,58 @@ module Cash
     describe 'Cache Usage' do
       describe 'when the cache is populated' do
         describe '#find' do
+          
+          describe 'storing nil values in cache' do
+            it 'populates the cache with special token when id does not exist in the database' do
+              Story.find_by_id(999_999)
+              Story.fetch("id/999999").should == 'NIL_CACHE_VALUE'
+            end
+
+            it 'caches the non-existent record' do
+              Story.find_by_id(999_999)
+              mock(Story.connection).execute.never
+              Story.find_by_id(999_999)
+            end
+
+            it 'correctly retrieves nil when special token is stored in the cache' do
+              Story.find_by_id(999_999)
+              Story.find_by_id(999_999).should be_nil
+            end
+            
+            it 'populates the cache with multiple special tokens when none of the ids exist' do
+              Story.find(:all, :conditions => {:id => [999_997, 999_998]} )
+              Story.fetch("id/999997").should == 'NIL_CACHE_VALUE'
+              Story.fetch("id/999998").should == 'NIL_CACHE_VALUE'
+            end
+
+            it 'caches the non-existent records when finding by multiple ids' do
+              Story.find(:all, :conditions => {:id => [999_997, 999_998]} )
+              mock(Story.connection).execute.never
+              Story.find(:all, :conditions => {:id => [999_997, 999_998]} )
+            end
+
+            it 'correctly retrieves empty array when special tokens are stored in the cache' do
+              Story.find(:all, :conditions => {:id => [999_997, 999_998]} )
+              Story.find(:all, :conditions => {:id => [999_997, 999_998]} ).should == []
+            end
+
+            it "populates the cache correctly when passing in a nonexistent key" do
+              story1 = Story.create!
+              story2 = Story.create!
+              $memcache.flush_all
+              Story.find(:all, :conditions => ["id IN (?)", [story1.id, 999, story2.id]]).should == [story1, story2]
+              Story.fetch("id/#{story1.id}").should == story1
+              Story.fetch("id/#{story2.id}").should == story2
+              Story.fetch("id/999").should == 'NIL_CACHE_VALUE'
+            end          
+          end
+          
           describe '#find(1)' do
             it 'does not use the database' do
               story = Story.create!
               mock(Story.connection).execute.never
               Story.find(story.id).should == story
             end
-            
-            it 'does not cache non-existent ids' do
-              mock(Story).add.never
-              begin
-                Story.find(1)
-              rescue ActiveRecord::RecordNotFound
-              end
-            end            
           end
 
           describe '#find(object)' do
@@ -427,6 +465,7 @@ module Cash
         end
         
         describe '#find(1,2)' do
+          
           it 'populates the cache' do
             another_story = Story.create!
             $memcache.flush_all
@@ -528,16 +567,6 @@ module Cash
               Story.find(:all, :conditions => {:id => ids})
             end.should_not raise_error(ArgumentError)
           end
-
-          it "populates the cache correctly when passing in a nonexistent key" do
-            story1 = Story.create!
-            story2 = Story.create!
-            $memcache.flush_all
-            Story.find(:all, :conditions => ["id IN (?)", [story1.id, 999, story2.id]]).should == [story1, story2]
-            Story.fetch("id/#{story1.id}").should == story1
-            Story.fetch("id/#{story2.id}").should == story2
-            Story.fetch("id/999").should be_nil
-          end          
         end
         
         describe 'when there is a with_scope' do

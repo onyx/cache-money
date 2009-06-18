@@ -41,6 +41,14 @@ module Cash
               it 'raises an error' do
                 lambda { Story.find(1) }.should raise_error(ActiveRecord::RecordNotFound)
               end
+
+              it 'raises an error the second time as well' do
+                begin
+                  Story.find(1)
+                rescue ActiveRecord::RecordNotFound
+                  lambda { Story.find(1) }.should raise_error(ActiveRecord::RecordNotFound)
+                end
+              end            
             end
 
             describe 'when given multiple nonexistent ids' do
