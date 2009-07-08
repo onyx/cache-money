@@ -102,6 +102,11 @@ module Cash
       end
 
       describe 'when there is a cache miss' do
+        it 'correctly set the ttl' do
+          mock(Story.repository.memcache).add(Story.cache_key("count"), "2", Story.cache_config.options[:ttl], true)
+          Story.incr("count", 1) { 2 }
+        end
+        
         it 'initializes the value of the cache to the value of the block' do
           Story.incr("count", 1) { 5 }
           Story.get("count", :raw => true).should =~ /5/
@@ -131,6 +136,20 @@ module Cash
           Story.add("count", 1)
           Story.get("count").should == 1
         end
+
+        it 'adds the key to the cache with the default ttl' do
+          mock(Story.repository.memcache).add(Story.cache_key("count"), 1, Story.cache_config.options[:ttl], nil)
+          Story.add("count", 1)
+        end
+      end
+    end
+
+    describe '#set' do
+      describe 'when the value does not already exist' do
+        it 'adds the key to the cache with the default ttl' do
+          mock(Story.repository.memcache).set(Story.cache_key("count"), 1, Story.cache_config.options[:ttl], nil)
+          Story.set("count", 1)
+        end
       end
     end
 
@@ -148,9 +167,15 @@ module Cash
         it 'returns the new cache value' do
           Story.decr("count", 2).should == 8
         end
+        
       end
 
       describe 'when there is a cache miss' do
+        it 'correctly set the ttl' do
+          mock(Story.repository.memcache).add(Story.cache_key("count"), "2", Story.cache_config.options[:ttl], true)
+          Story.decr("count", 1) { 2 }
+        end
+
         it 'initializes the value of the cache to the value of the block' do
           Story.decr("count", 1) { 5 }
           Story.get("count", :raw => true).should =~ /5/
