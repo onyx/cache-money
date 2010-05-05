@@ -62,7 +62,8 @@ module Cash
       specify "prevents two processes from acquiring the same lock at the same time" do
         $lock.acquire_lock('lock_key')
         as_another_process do
-          lambda { $lock.acquire_lock('lock_key') }.should raise_error
+          stub($lock).sleep # move right through the sleeps
+          lambda { $lock.acquire_lock('lock_key') }.should raise_error(Cash::Lock::Error)
         end
       end
 

@@ -24,11 +24,9 @@ module Cash
 
     def acquire_lock(key, lock_expiry = DEFAULT_EXPIRY, retries = DEFAULT_RETRY)
       retries.times do |count|
-        begin
-          response = @cache.add("lock/#{key}", Process.pid, lock_expiry)
-          return if response == "STORED\r\n"
-          raise Error if count == retries - 1
-        end
+        response = @cache.add("lock/#{key}", Process.pid, lock_expiry)
+        return if response == "STORED\r\n"
+        raise Error if count == retries - 1
         exponential_sleep(count) unless count == retries - 1
       end
       raise Error, "Couldn't acquire memcache lock for: #{key}"
@@ -39,7 +37,7 @@ module Cash
     end
 
     def exponential_sleep(count)
-      @runtime += Benchmark::measure { sleep((2**count) / 2.0) }
+      sleep((2**count) / 2.0)
     end
 
     private
